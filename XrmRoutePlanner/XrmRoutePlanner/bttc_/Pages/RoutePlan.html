@@ -1,0 +1,222 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Route Plan</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <script type="text/javascript" src="https://maps.google.com/maps/api/js"></script>
+    <!--[if IE]><script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+    <link href="../Styles/RoutePlan.css" rel="stylesheet" />
+    <script src="../Scripts/Shared/jquery.js"></script>
+    <script src="../Scripts/Shared/jquery_ui.js"></script>
+    <script src="../Scripts/Shared/wickedpicker.js"></script>
+    <link href="../Styles/Shared/jquery_ui.css" rel="stylesheet" />
+    <link href="../Styles/Shared/wickedpicker.css" rel="stylesheet" />
+    <script type="text/javascript">
+
+        $(function () {
+            $(".wrapper").height($(document).height());
+
+            $("#routeDate").datepicker({
+                minDate: 0,
+                dateFormat: "yy-mm-dd",
+                showButtonPanel: true,
+                changeMonth: true,
+                changeYear: true,
+                showOtherMonths: true,
+                selectOtherMonths: true
+            });
+
+            $("#routeBeginTime").wickedpicker({
+                twentyFour: true
+            })
+
+            $(".routePlan").sortable({
+                connectWith: ".routePlan",
+                handle: ".appointment-header",
+                cancel: ".appointment-toggle",
+                placeholder: "appointment-placeholder ui-corner-all"
+            });
+
+            var currentAppointment = null;
+
+            var $editAppointmentForm = $("#editAppointmentForm").dialog({
+                height: 300,
+                width: 350,
+                modal: true,
+                autoOpen: false,
+                buttons: {
+                    "Done": function () {
+                        $editAppointmentForm.dialog("close");
+                    },
+                    Cancel: function () {
+                        $editAppointmentForm.dialog("close");
+                    }
+                },
+                close: function () {
+                    $("#editAppointmentForm form")[0].reset();
+                    $("#addressDisplay").text("");
+                    currentAppointment = null;
+                }
+            });
+
+            $("#addAppointment").click(function (event) {
+                $editAppointmentForm.dialog("open");
+                event.preventDefault();
+            });
+
+            var origin = "144 avenue Roger Salengro, Chaville",
+                destination = "82 avenue du parc, Lagny-le-Sec";
+
+            var appointments = [{
+                id: "1",
+                hours: 8,
+                minutes: 15,
+                subject: "Test",
+                regarding: {
+                    id: "GUID1",
+                    name: "Compte 1"
+                },
+                duration: 60,
+                address: "79 rue la Boétie, Paris"
+            }, {
+                id: "2",
+                hours: 10,
+                minutes: 15,
+                subject: "Test",
+                regarding: {
+                    id: "GUID2",
+                    name: "Compte 2"
+                },
+                duration: 60,
+                address: "Meudon"
+            }];
+
+            $.each(appointments, function (index, appointment) {
+                var appointmentTemplate = [
+                    '<div class="appointment">',
+                        '<div class="appointment-header">',
+                            '{Time} - {Regarding}',
+                        '</div>',
+                        '<div class="appointment-content" style="display: none;">',
+                            '<p>{Subject}</p>',
+                            '<p>{Duration}</p>',
+                            '<p>{Address}</p>',
+                            '<button>Edit</button>',
+                        '</div>',
+                    '</div>'
+                ].join("");
+
+                var appointmentHtml = appointmentTemplate
+                    .replace("{Time}", appointment.hours + ":" + appointment.minutes)
+                    .replace("{Regarding}", appointment.regarding.name)
+                    .replace("{Subject}", appointment.subject)
+                    .replace("{Duration}", appointment.duration)
+                    .replace("{Address}", appointment.address);
+                var $appointment = $(appointmentHtml);
+
+                $(".routePlan").append($appointment);
+                $appointment.find("button").click(function (event) {
+                    currentAppointment = appointment;
+                    $("#subject").val(appointment.subject);
+                    $("#duration").val(appointment.duration);
+                    $("#regarding").val(appointment.regarding.name);
+                    $("#addressDisplay").text(appointment.address);
+                    $editAppointmentForm.dialog("open");
+                    event.preventDefault();
+                });
+            });
+
+            $(".appointment")
+              .addClass("ui-widget ui-widget-content ui-helper-clearfix ui-corner-all")
+              .find(".appointment-header")
+                .addClass("ui-widget-header ui-corner-all")
+                .prepend("<span class='ui-icon ui-icon-plusthick appointment-toggle'></span>");
+
+            $(".appointment-toggle").click(function () {
+                var icon = $(this);
+                icon.toggleClass("ui-icon-minusthick ui-icon-plusthick");
+                icon.closest(".appointment").find(".appointment-content").toggle();
+            });
+
+            var directionDisplay = new google.maps.DirectionsRenderer();
+            var directionService = new google.maps.DirectionsService();
+            var map = new google.maps.Map($("#map_canvas")[0], {
+                zoom: 19,
+                center: new google.maps.LatLng(48.858565, 2.347198),
+                mapTypeId: google.maps.MapTypeId.ROADMAP,
+                mapTypeControl: false
+            });
+            directionDisplay.setMap(map);
+
+            directionService.route({
+                origin: "144 avenue Roger Salengro, Chaville",
+                destination: "82 avenue du parc, Lagny-le-Sec",
+                waypoints: [
+                    { location: "79 rue la Boétie, Paris", stopover: true },
+                    { location: "Meudon", stopover: true }
+                ],
+                optimizeWaypoints: true,
+                travelMode: google.maps.TravelMode.DRIVING
+            }, function (response, status) {
+                if (status === google.maps.DirectionsStatus.OK) {
+                    directionDisplay.setDirections(response);
+                }
+                else {
+                    window.alert('Directions request failed due to ' + status);
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+
+    <div id="editAppointmentForm" title="Edit appointment">
+        <form>
+            <fieldset>
+                <div>
+                    <label for="subject">Subject</label>
+                    <input type="text" name="subject" id="subject" class="text ui-widget-content ui-corner-all">
+                </div>
+                <div>
+                    <label for="duration">Duration</label>
+                    <input type="text" name="duration" id="duration" class="text ui-widget-content ui-corner-all">
+                </div>
+                <div>
+                    <label for="regarding">Regarding</label>
+                    <input type="text" name="regarding" id="regarding" class="text ui-widget-content ui-corner-all">
+                </div>
+                <div id="addressDisplay">
+                </div>
+
+                <!-- Allow form submission with keyboard without duplicating the dialog button -->
+                <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+            </fieldset>
+        </form>
+    </div>
+    <div class="wrapper">
+        <div class="wrapleft">
+            <div id="map_canvas" class="left">
+            </div>
+        </div>
+        <div id="map_options" class="right">
+            <h2>Route Plan</h2>
+            <form action="" id="routeForm">
+                <div>
+                    <label for="routeDate">Date :</label>
+                    <input type="text" id="routeDate" />
+                </div>
+                <div>
+                    <label for="routeBeginTime">Begin time :</label>
+                    <input type="text" id="routeBeginTime" />
+                </div>
+                <button id="addAppointment">Add appointment</button>
+                <div class="routePlan">
+                </div>
+                <button id="optimizeRoute">Optimize route</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
